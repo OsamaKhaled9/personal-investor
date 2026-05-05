@@ -2,10 +2,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Portfolio", icon: "💼" },
   { href: "/market", label: "Market", icon: "📊" },
+  { href: "/watchlist", label: "Watchlist", icon: "🔖" },
   { href: "/chat", label: "AI Analyst", icon: "🧠" },
   { href: "/alerts", label: "Alerts", icon: "🔔" },
 ];
@@ -21,6 +23,8 @@ export function NavBar() {
         </Link>
 
         <nav className="flex items-center gap-1">
+          <ThemeToggle />
+          <div className="w-px h-4 bg-[var(--border)] mx-1" />
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             return (

@@ -12,22 +12,38 @@ import type { AlertRule } from "@/lib/types";
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
 
-  const loadAlerts = useCallback(async () => {
+  const refetchAlerts = useCallback(async () => {
     const res = await fetch("/api/alerts");
-    if (res.ok) {
-      const d = await res.json();
-      setAlerts(d.alerts ?? []);
-    }
-    setLoading(false);
+    if (res.ok) setAlerts((await res.json()).alerts ?? []);
   }, []);
 
-  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setError(null);
+      setLoading(true);
+      try {
+        const res = await fetch("/api/alerts");
+        if (cancelled) return;
+        if (res.ok) setAlerts((await res.json()).alerts ?? []);
+        setLoading(false);
+      } catch {
+        if (!cancelled) { setError("Couldn't load alerts"); setLoading(false); }
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [retryCount]);
 
   const deleteAlert = async (id: string) => {
     await fetch(`/api/alerts?id=${id}`, { method: "DELETE" });
-    loadAlerts();
+    refetchAlerts();
   };
 
   const active = alerts.filter((a) => a.active);
@@ -44,6 +60,13 @@ export default function AlertsPage() {
           + New Alert
         </Button>
       </motion.div>
+
+      {error && (
+        <div className="rounded-xl border border-[var(--accent-red)] bg-[var(--surface)] p-6 text-center">
+          <p className="text-[var(--foreground-muted)] mb-3">{error}</p>
+          <Button onClick={() => setRetryCount((c) => c + 1)} variant="outline" size="sm">Retry</Button>
+        </div>
+      )}
 
       {/* Active alerts */}
       <section>
@@ -86,7 +109,7 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <AddAlertDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={loadAlerts} />
+      <AddAlertDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetchAlerts} />
     </div>
   );
 }

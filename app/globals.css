@@ -1,6 +1,28 @@
 @import "tailwindcss";
 
-:root {
+/* ─── Light mode (default) ─────────────────────────────────────────────── */
+:root,
+html.light {
+  --background: #fafbfc;
+  --surface: #ffffff;
+  --surface-elevated: #f3f4f6;
+  --border: #d0d7de;
+  --border-subtle: #eaeef2;
+  --foreground: #0d1117;
+  --foreground-muted: #57606a;
+  --foreground-subtle: #8c959f;
+  --accent-green: #1a7f37;
+  --accent-red: #cf222e;
+  --accent-gold: #9a6700;
+  --accent-blue: #0969da;
+  --accent-purple: #8250df;
+
+  color-scheme: light;
+}
+
+/* ─── Dark mode ─────────────────────────────────────────────────────────── */
+/* html.dark has higher specificity than :root — wins regardless of source order */
+html.dark {
   --background: #07090f;
   --surface: #0d1117;
   --surface-elevated: #161b22;
@@ -14,8 +36,11 @@
   --accent-gold: #d29922;
   --accent-blue: #58a6ff;
   --accent-purple: #bc8cff;
+
+  color-scheme: dark;
 }
 
+/* ─── Tailwind 4 theme mapping ──────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -32,6 +57,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ─── Base ──────────────────────────────────────────────────────────────── */
 * {
   border-color: var(--border);
 }
@@ -43,17 +69,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar */
+/* Smooth theme transition on structural elements — not on * to avoid fighting Framer Motion */
+html, body, header, nav, main, section, aside, footer,
+div[class], span[class], a[class], button[class] {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--foreground-subtle); }
 
-/* Chart tooltips */
+/* ─── Chart tooltips ────────────────────────────────────────────────────── */
 .recharts-tooltip-wrapper {
   border-radius: 8px !important;
   overflow: hidden;
 }
 
-/* Smooth transitions */
+/* Override Recharts tooltip colors to follow theme */
+.recharts-tooltip-content {
+  background: var(--surface-elevated) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+
+/* ─── Link & button base transitions ────────────────────────────────────── */
 a, button { transition: opacity 0.15s, color 0.15s, background 0.15s; }

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { HalalBadge } from "@/components/halal-badge";
 import { PriceChange } from "@/components/price-change";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { StockQuote } from "@/lib/types";
@@ -14,16 +15,21 @@ const fadeIn = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } };
 export default function MarketPage() {
   const [quotes, setQuotes] = useState<StockQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("EGX");
 
-  useEffect(() => {
+  const loadQuotes = (market: string) => {
     setLoading(true);
-    const endpoint = tab === "EGX" ? "/api/market/egx" : "/api/market/egx"; // US would be different
+    setError(null);
+    const endpoint = market === "EGX" ? "/api/market/egx" : "/api/market/us/list";
     fetch(endpoint)
       .then((r) => r.json())
-      .then((d) => { setQuotes(d.quotes ?? []); setLoading(false); });
-  }, [tab]);
+      .then((d) => { setQuotes(d.quotes ?? []); setLoading(false); })
+      .catch(() => { setError("Couldn't load market data"); setLoading(false); });
+  };
+
+  useEffect(() => { loadQuotes(tab); }, [tab]);
 
   const filtered = quotes.filter((q) =>
     q.ticker.toLowerCase().includes(search.toLowerCase()) ||
@@ -45,6 +51,13 @@ export default function MarketPage() {
           className="bg-[var(--surface)] border-[var(--border)] max-w-xs"
         />
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-[var(--accent-red)] bg-[var(--surface)] p-6 text-center">
+          <p className="text-[var(--foreground-muted)] mb-3">{error}</p>
+          <Button onClick={() => loadQuotes(tab)} variant="outline" size="sm">Retry</Button>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-[var(--surface)] border border-[var(--border)]">

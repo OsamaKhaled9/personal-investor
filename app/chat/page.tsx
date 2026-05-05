@@ -20,7 +20,7 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/portfolio").then((r) => r.json()).then(setPortfolio);
+    fetch("/api/portfolio").then((r) => r.json()).then(setPortfolio).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -43,15 +43,18 @@ export default function ChatPage() {
       parts: [{ text: m.content }],
     }));
 
-    const res = await fetch("/api/ai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: apiMessages, portfolio }),
-    });
-
-    const data = await res.json();
-    const assistantMsg: ChatMessage = { role: "assistant", content: data.response ?? "Error getting response.", timestamp: new Date().toISOString() };
-    setMessages((prev) => [...prev, assistantMsg]);
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages, portfolio }),
+      });
+      const data = await res.json();
+      const assistantMsg: ChatMessage = { role: "assistant", content: data.response ?? "Sorry, no response received.", timestamp: new Date().toISOString() };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "Couldn't reach the AI — please try again.", timestamp: new Date().toISOString() }]);
+    }
     setLoading(false);
   };
 

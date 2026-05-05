@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { HalalBadge } from "@/components/halal-badge";
 import { PriceChange } from "@/components/price-change";
 import { PriceChart } from "@/components/charts/price-chart";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StockAnalysis } from "@/lib/types";
 
@@ -14,19 +15,83 @@ export default function StockPage({ params, searchParams }: { params: Promise<{ 
   const [analysis, setAnalysis] = useState<StockAnalysis | null>(null);
   const [history, setHistory] = useState<{ date: string; close: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isWatched, setIsWatched] = useState(false);
+  const [watchId, setWatchId] = useState<string | null>(null);
+  const [watchLoading, setWatchLoading] = useState(false);
+  const [watchStatus, setWatchStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/ai/analyze?ticker=${ticker}&market=${market}`).then((r) => r.json()),
-      fetch(`/api/market/us?ticker=${ticker}&market=${market}&period=1m`).then((r) => r.json()),
-    ]).then(([analysis, marketData]) => {
-      setAnalysis(analysis);
-      setHistory((marketData.history ?? []).map((h: { date: string; close: number }) => ({ date: h.date, close: h.close })));
-      setLoading(false);
-    });
-  }, [ticker, market]);
+    let cancelled = false;
+
+    async function load() {
+      setError(null);
+      setLoading(true);
+      try {
+        const [analysisData, marketData] = await Promise.all([
+          fetch(`/api/ai/analyze?ticker=${ticker}&market=${market}`).then((r) => r.json()),
+          fetch(`/api/market/us?ticker=${ticker}&market=${market}&period=1m`).then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        setAnalysis(analysisData);
+        setHistory((marketData.history ?? []).map((h: { date: string; close: number }) => ({ date: h.date, close: h.close })));
+        setLoading(false);
+      } catch {
+        if (!cancelled) { setError("Couldn't load stock data"); setLoading(false); }
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [ticker, market, retryCount]);
+
+  useEffect(() => {
+    fetch("/api/watchlist")
+      .then((r) => r.json())
+      .then((d) => {
+        const match = (d.items ?? []).find((i: { ticker: string; id: string }) => i.ticker === ticker);
+        if (match) { setIsWatched(true); setWatchId(match.id); }
+      })
+      .catch(() => {});
+  }, [ticker]);
+
+  const toggleWatch = async () => {
+    setWatchLoading(true);
+    setWatchStatus(null);
+    try {
+      if (isWatched && watchId) {
+        await fetch(`/api/watchlist?id=${watchId}`, { method: "DELETE" });
+        setIsWatched(false);
+        setWatchId(null);
+        setWatchStatus("Removed from watchlist");
+      } else {
+        const res = await fetch("/api/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker, market, name: analysis?.quote?.name ?? ticker }),
+        });
+        if (res.ok) {
+          const d = await res.json();
+          setIsWatched(true);
+          setWatchId(d.id);
+          setWatchStatus("Added to watchlist");
+        }
+      }
+    } catch {
+      setWatchStatus("Failed — try again");
+    }
+    setWatchLoading(false);
+    setTimeout(() => setWatchStatus(null), 2500);
+  };
 
   if (loading) return <StockSkeleton />;
+  if (error) return (
+    <div className="rounded-xl border border-[var(--accent-red)] bg-[var(--surface)] p-8 text-center">
+      <p className="text-[var(--foreground-muted)] mb-3">{error}</p>
+      <Button onClick={() => setRetryCount((c) => c + 1)} variant="outline" size="sm">Retry</Button>
+    </div>
+  );
   if (!analysis?.quote) return <div className="text-center py-20 text-[var(--foreground-muted)]">Stock not found</div>;
 
   const { quote, halal, technical } = analysis;
@@ -48,8 +113,23 @@ export default function StockPage({ params, searchParams }: { params: Promise<{ 
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-3xl font-bold font-mono">{ticker}</h1>
             <HalalBadge status={halal.status} />
+            <button
+              onClick={toggleWatch}
+              disabled={watchLoading}
+              title={isWatched ? "Remove from watchlist" : "Add to watchlist"}
+              className="text-xl leading-none transition-opacity hover:opacity-70 disabled:opacity-40"
+            >
+              {isWatched ? "🔖" : "🏷️"}
+            </button>
           </div>
-          <p className="text-[var(--foreground-muted)] text-sm">{quote.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[var(--foreground-muted)] text-sm">{quote.name}</p>
+            {watchStatus && (
+              <span className="text-xs text-[var(--foreground-muted)] bg-[var(--surface-elevated)] px-2 py-0.5 rounded-full">
+                {watchStatus}
+              </span>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <p className="text-3xl font-bold font-mono">{quote.price.toFixed(2)} <span className="text-base text-[var(--foreground-muted)]">{quote.currency}</span></p>

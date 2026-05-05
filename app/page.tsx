@@ -17,22 +17,47 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
 
-  const loadPortfolio = useCallback(async () => {
+  const refetchPortfolio = useCallback(async () => {
     const res = await fetch("/api/portfolio");
     if (res.ok) setPortfolio(await res.json());
-    setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadPortfolio();
-    fetch("/api/news").then((r) => r.json()).then((d) => setNews(d.articles ?? []));
-  }, [loadPortfolio]);
+    let cancelled = false;
+
+    async function init() {
+      setError(null);
+      setLoading(true);
+      try {
+        const [portfolioRes, newsRes] = await Promise.all([
+          fetch("/api/portfolio"),
+          fetch("/api/news"),
+        ]);
+        if (cancelled) return;
+        const [portfolioData, newsData] = await Promise.all([
+          portfolioRes.ok ? portfolioRes.json() : Promise.resolve(null),
+          newsRes.json(),
+        ]);
+        if (cancelled) return;
+        if (portfolioData) setPortfolio(portfolioData);
+        setLoading(false);
+        setNews(newsData.articles ?? []);
+      } catch {
+        if (!cancelled) { setError("Couldn't load portfolio"); setLoading(false); }
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, [retryCount]);
 
   const removeHolding = async (id: string) => {
     await fetch(`/api/portfolio?id=${id}`, { method: "DELETE" });
-    loadPortfolio();
+    refetchPortfolio();
   };
 
   return (
@@ -66,6 +91,13 @@ export default function DashboardPage() {
           + Add Holding
         </Button>
       </motion.div>
+
+      {error && (
+        <div className="rounded-xl border border-[var(--accent-red)] bg-[var(--surface)] p-6 text-center">
+          <p className="text-[var(--foreground-muted)] mb-3">{error}</p>
+          <Button onClick={() => setRetryCount((c) => c + 1)} variant="outline" size="sm">Retry</Button>
+        </div>
+      )}
 
       {/* Holdings grid */}
       <section>
@@ -120,7 +152,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <AddHoldingDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={loadPortfolio} />
+      <AddHoldingDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetchPortfolio} />
     </div>
   );
 }
