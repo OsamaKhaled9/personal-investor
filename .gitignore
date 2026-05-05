@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — commit .env*.example templates, ignore everything else
 .env*
+!.env*.example
 
 # vercel
 .vercel
@@ -39,3 +40,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase local dev
+.supabase/
+
+# os
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
