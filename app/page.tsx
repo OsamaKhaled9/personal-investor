@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Portfolio, Holding, NewsArticle } from "@/lib/types";
 import { Sparkline } from "@/components/sparkline";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
+import { PullRefreshIndicator } from "@/components/pull-refresh-indicator";
 
 const fadeIn = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 const stagger = { show: { transition: { staggerChildren: 0.06 } } };
@@ -29,6 +31,8 @@ export default function DashboardPage() {
     const res = await fetch("/api/portfolio", { cache: "no-store" });
     if (res.ok) setPortfolio(await res.json());
   }, []);
+
+  const isRefreshing = usePullToRefresh(refetchPortfolio);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +70,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <PullRefreshIndicator visible={isRefreshing} />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
@@ -119,7 +124,7 @@ export default function DashboardPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-xl bg-[var(--surface)]" />
+              <HoldingCardSkeleton key={i} />
             ))}
           </div>
         ) : portfolio?.holdings.length === 0 ? (
@@ -281,6 +286,33 @@ function StatCard({ label, value, valueClass }: { label: string; value: string; 
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
       <p className="text-xs text-[var(--foreground-muted)] font-mono uppercase tracking-wider mb-1">{label}</p>
       <p className={`font-mono font-bold text-lg ${valueClass ?? "text-[var(--foreground)]"}`}>{value}</p>
+    </div>
+  );
+}
+
+function HoldingCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <Skeleton className="h-5 w-14 mb-1.5 bg-[var(--surface-elevated)]" />
+          <Skeleton className="h-3 w-32 bg-[var(--surface-elevated)]" />
+        </div>
+        <div className="text-right">
+          <Skeleton className="h-4 w-16 mb-1 bg-[var(--surface-elevated)]" />
+          <Skeleton className="h-3 w-8 ml-auto bg-[var(--surface-elevated)]" />
+        </div>
+      </div>
+      <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between">
+        <div>
+          <Skeleton className="h-3 w-20 mb-1 bg-[var(--surface-elevated)]" />
+          <Skeleton className="h-3 w-24 bg-[var(--surface-elevated)]" />
+        </div>
+        <div className="text-right">
+          <Skeleton className="h-4 w-14 mb-1 ml-auto bg-[var(--surface-elevated)]" />
+          <Skeleton className="h-3 w-10 ml-auto bg-[var(--surface-elevated)]" />
+        </div>
+      </div>
     </div>
   );
 }

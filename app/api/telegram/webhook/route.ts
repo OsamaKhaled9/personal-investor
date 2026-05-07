@@ -100,6 +100,24 @@ bot.command("analyze", async (ctx) => {
   );
 });
 
+bot.command("brief", async (ctx) => {
+  ctx.reply("⏳ Generating morning brief...");
+  try {
+    const origin = (() => {
+      // derive base URL from the bot token host — use Vercel URL env var if available
+      const vercelUrl = process.env.VERCEL_URL;
+      return vercelUrl ? `https://${vercelUrl}` : process.env.NEXTAUTH_URL ?? "";
+    })();
+    const res = await fetch(`${origin}/api/cron/morning-brief`, {
+      headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
+    });
+    if (!res.ok) throw new Error(`Brief API returned ${res.status}`);
+    ctx.reply("✅ Morning brief sent!");
+  } catch (e) {
+    ctx.reply(`❌ Failed to generate brief: ${e instanceof Error ? e.message : String(e)}`);
+  }
+});
+
 bot.command("alerts", async (ctx) => {
   const { data: alerts } = await supabaseAdmin.from("alert_rules").select("*").eq("active", true);
   if (!alerts || alerts.length === 0) { ctx.reply("📭 No active alerts."); return; }
@@ -140,7 +158,14 @@ export async function GET(req: NextRequest) {
   if (setup !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const webhookUrl = `${req.headers.get("origin") ?? ""}/api/telegram/webhook`;
+  // Derive the base URL from Vercel's env var (auto-set) or request headers
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const host =
+    process.env.VERCEL_URL ??
+    req.headers.get("x-forwarded-host") ??
+    req.headers.get("host") ??
+    new URL(req.url).host;
+  const webhookUrl = `${proto}://${host}/api/telegram/webhook`;
   await bot.api.setWebhook(webhookUrl);
   return NextResponse.json({ ok: true, webhookUrl });
 }
