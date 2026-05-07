@@ -99,4 +99,6 @@ export const EGX_KNOWN_TICKERS: { ticker: string; name: string; sector: string }
   { ticker: "EFIH", name: "EFG Finance", sector: "Financial Services" },
   { ticker: "AMOC", name: "Alexandria Mineral Oils", sector: "Energy" },
   { ticker: "ABCO", name: "Alexandria Container", sector: "Logistics" },
+  { ticker: "CMS", name: "Misr Sharia Equity Fund", sector: "Mutual Fund" },
+  { ticker: "MTF", name: "Misr Takaful Insurance", sector: "Insurance" },
 ];

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Portfolio, Holding, NewsArticle } from "@/lib/types";
+import { Sparkline } from "@/components/sparkline";
 
 const fadeIn = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 const stagger = { show: { transition: { staggerChildren: 0.06 } } };
@@ -20,9 +21,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [updatePriceHolding, setUpdatePriceHolding] = useState<Holding | null>(null);
+
+  const staleHoldings = portfolio?.holdings.filter((h) => h.isPriceStale) ?? [];
 
   const refetchPortfolio = useCallback(async () => {
-    const res = await fetch("/api/portfolio");
+    const res = await fetch("/api/portfolio", { cache: "no-store" });
     if (res.ok) setPortfolio(await res.json());
   }, []);
 
@@ -99,6 +103,16 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {staleHoldings.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-[var(--accent-gold)] bg-[var(--surface)] p-4 flex items-center gap-3">
+          <span className="text-[var(--accent-gold)] text-lg flex-shrink-0">⚠</span>
+          <p className="text-sm text-[var(--foreground-muted)]">
+            <span className="font-mono font-semibold text-[var(--foreground)]">{staleHoldings.map((h) => h.ticker).join(", ")}</span>
+            {" "}— manual price is over 3 days old. Tap the holding to update the NAV.
+          </p>
+        </motion.div>
+      )}
+
       {/* Holdings grid */}
       <section>
         <h2 className="text-xs font-mono uppercase tracking-widest text-[var(--foreground-muted)] mb-3">Holdings</h2>
@@ -118,7 +132,7 @@ export default function DashboardPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"
           >
             {portfolio?.holdings.map((h) => (
-              <HoldingCard key={h.id} holding={h} onRemove={removeHolding} />
+              <HoldingCard key={h.id} holding={h} onRemove={removeHolding} onUpdatePrice={setUpdatePriceHolding} />
             ))}
           </motion.div>
         )}
@@ -153,12 +167,30 @@ export default function DashboardPage() {
       )}
 
       <AddHoldingDialog open={addOpen} onClose={() => setAddOpen(false)} onAdded={refetchPortfolio} />
+      <UpdatePriceDialog
+        holding={updatePriceHolding}
+        onClose={() => setUpdatePriceHolding(null)}
+        onSaved={refetchPortfolio}
+      />
     </div>
   );
 }
 
-function HoldingCard({ holding: h, onRemove }: { holding: Holding; onRemove: (id: string) => void }) {
+function HoldingCard({ holding: h, onRemove, onUpdatePrice }: {
+  holding: Holding;
+  onRemove: (id: string) => void;
+  onUpdatePrice: (h: Holding) => void;
+}) {
   const positive = h.unrealizedGainPercent >= 0;
+  const [history, setHistory] = useState<{ price: number }[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/price-history?ticker=${encodeURIComponent(h.ticker)}&market=${h.market}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.history) setHistory(d.history); })
+      .catch(() => {});
+  }, [h.ticker, h.market]);
+
   return (
     <motion.div
       variants={fadeIn}
@@ -199,6 +231,23 @@ function HoldingCard({ holding: h, onRemove }: { holding: Holding; onRemove: (id
           </p>
         </div>
       </div>
+      {history.length >= 5 && (
+        <div className="mt-3 -mx-1">
+          <Sparkline data={history} positive={positive} />
+        </div>
+      )}
+      {h.priceSource !== "live" && (
+        <button
+          onClick={() => onUpdatePrice(h)}
+          className={`mt-3 w-full text-xs py-1 rounded-md border transition-colors ${
+            h.isPriceStale
+              ? "border-[var(--accent-gold)] text-[var(--accent-gold)] hover:bg-[var(--surface-elevated)]"
+              : "border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-elevated)]"
+          }`}
+        >
+          {h.isPriceStale ? "⚠ Update price" : "Set price"}
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -249,6 +298,57 @@ function EmptyPortfolio({ onAdd }: { onAdd: () => void }) {
         Add your first holding
       </Button>
     </motion.div>
+  );
+}
+
+function UpdatePriceDialog({ holding, onClose, onSaved }: { holding: Holding | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [price, setPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holding) return;
+    setSaving(true);
+    const res = await fetch("/api/portfolio", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: holding.id, manualPrice: parseFloat(price) }),
+    });
+    if (res.ok) {
+      await onSaved(); // wait for portfolio refetch before closing so card updates immediately
+      onClose();
+      setPrice("");
+    }
+    setSaving(false);
+  };
+
+  return (
+    <Dialog open={!!holding} onOpenChange={(o) => { if (!o) { onClose(); setPrice(""); } }}>
+      <DialogContent className="bg-[var(--surface)] border-[var(--border)] text-[var(--foreground)] max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Update Price — <span className="font-mono">{holding?.ticker}</span></DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-[var(--foreground-muted)] -mt-1">{holding?.name}</p>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          <div className="space-y-1">
+            <label className="text-xs text-[var(--foreground-muted)]">Current NAV / Price ({holding?.currency})</label>
+            <Input
+              type="number"
+              step="any"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={holding?.currentPrice.toFixed(2) ?? "0.00"}
+              required
+              autoFocus
+              className="bg-[var(--surface-elevated)] border-[var(--border)] font-mono"
+            />
+          </div>
+          <Button type="submit" disabled={saving} className="w-full bg-[var(--accent-blue)] hover:opacity-90 text-white">
+            {saving ? "Saving..." : "Save Price"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

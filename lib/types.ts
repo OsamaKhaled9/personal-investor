@@ -42,6 +42,9 @@ export interface Holding {
   unrealizedGain: number;
   unrealizedGainPercent: number;
   halal?: HalalScreenResult;
+  priceSource?: "live" | "manual";
+  manualPriceUpdatedAt?: string;
+  isPriceStale?: boolean;
 }
 
 export interface Portfolio {
@@ -119,6 +122,8 @@ export type PortfolioHoldingRow = {
   currency: Currency;
   shares: number;
   avg_cost_price: number;
+  manual_price: number | null;
+  manual_price_updated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -152,5 +157,16 @@ export type HalalCacheRow = {
   interest_income_ratio: number | null;
   receivables_ratio: number | null;
   expires_at: string;
+  created_at: string;
+};
+
+export type PriceSnapshotRow = {
+  ticker: string;
+  market: Market;
+  trading_date: string;
+  price: number;
+  change_percent: number;
+  currency: Currency;
+  source: "yahoo" | "manual";
   created_at: string;
 };

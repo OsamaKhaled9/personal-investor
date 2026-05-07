@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMultipleQuotes } from "@/lib/yahoo-finance";
-import type { Holding, Portfolio, PortfolioHoldingRow } from "@/lib/types";
+import type { Holding, Portfolio, PortfolioHoldingRow, Currency } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -25,12 +25,42 @@ export async function GET() {
     return NextResponse.json({ holdings: [], totalValueEGP: 0, totalCostEGP: 0, totalUnrealizedGainEGP: 0, totalUnrealizedGainPercent: 0, lastUpdated: new Date().toISOString() } satisfies Portfolio);
   }
 
-  const quoteRequests = (rows as PortfolioHoldingRow[]).map((r) => ({
-    ticker: r.ticker,
-    market: r.market,
-  }));
-  const quotes = await getMultipleQuotes(quoteRequests);
-  const quoteMap = new Map(quotes.map((q) => [q.ticker, q]));
+  const today = new Date().toISOString().split("T")[0];
+  const tickers = (rows as PortfolioHoldingRow[]).map((r) => r.ticker);
+
+  // Phase 1: check Supabase snapshot cache for today
+  const { data: snapshots } = await supabaseAdmin
+    .from("price_snapshots")
+    .select("ticker, market, price, change_percent, currency")
+    .in("ticker", tickers)
+    .eq("trading_date", today);
+
+  const snapshotMap = new Map(
+    (snapshots ?? []).map((s) => [s.ticker, s])
+  );
+
+  // Phase 2: live Yahoo fetch only for tickers without today's snapshot
+  const needsLive = (rows as PortfolioHoldingRow[])
+    .filter((r) => !snapshotMap.has(r.ticker))
+    .map((r) => ({ ticker: r.ticker, market: r.market }));
+
+  const liveQuotes = needsLive.length > 0
+    ? await getMultipleQuotes(needsLive)
+    : [];
+
+  // Merge snapshots + live quotes into one unified quoteMap
+  const quoteMap = new Map<string, { price: number; changePercent: number; name?: string; currency: Currency }>();
+  for (const s of (snapshots ?? [])) {
+    quoteMap.set(s.ticker, { price: s.price, changePercent: s.change_percent, currency: s.currency as Currency });
+  }
+  for (const q of liveQuotes) {
+    quoteMap.set(q.ticker, { price: q.price, changePercent: q.changePercent, name: q.name, currency: q.currency });
+    // Fire-and-forget: write live quote as today's snapshot so next request hits cache
+    supabaseAdmin.from("price_snapshots").upsert({
+      ticker: q.ticker, market: q.market, trading_date: today,
+      price: q.price, change_percent: q.changePercent, currency: q.currency, source: "yahoo",
+    }, { onConflict: "ticker,market,trading_date" }).then(() => {});
+  }
 
   // Fetch USD/EGP rate
   let usdToEgp = 50; // fallback
@@ -41,7 +71,12 @@ export async function GET() {
 
   const holdings: Holding[] = (rows as PortfolioHoldingRow[]).map((row) => {
     const q = quoteMap.get(row.ticker);
-    const currentPrice = q?.price ?? row.avg_cost_price;
+    // Treat price=0 from stub as "no live data" — nullish coalescing alone won't catch 0
+    const livePrice = q && q.price > 0 ? q.price : undefined;
+    const hasManual = row.manual_price != null && row.manual_price > 0;
+    const currentPrice = livePrice ?? (hasManual ? row.manual_price! : row.avg_cost_price);
+    const priceSource: "live" | "manual" | undefined =
+      livePrice ? "live" : hasManual ? "manual" : undefined;
     const currency = row.currency;
     const currentValue = row.shares * currentPrice;
     const costBasis = row.shares * row.avg_cost_price;
@@ -51,7 +86,7 @@ export async function GET() {
     return {
       id: row.id,
       ticker: row.ticker,
-      name: q?.name ?? row.name,
+      name: q?.name ?? row.name ?? row.ticker,
       market: row.market,
       currency,
       shares: row.shares,
@@ -61,6 +96,12 @@ export async function GET() {
       costBasis,
       unrealizedGain,
       unrealizedGainPercent,
+      priceSource,
+      manualPriceUpdatedAt: row.manual_price_updated_at ?? undefined,
+      isPriceStale: priceSource === "manual" && (
+        !row.manual_price_updated_at ||
+        (Date.now() - new Date(row.manual_price_updated_at).getTime()) / 86_400_000 > 3
+      ),
     };
   });
 
@@ -113,13 +154,17 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const body = await req.json();
-  const { id, shares, avgCostPrice } = body;
+  const { id, shares, avgCostPrice, manualPrice } = body;
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
   const updates: Record<string, unknown> = {};
   if (shares !== undefined) updates.shares = shares;
   if (avgCostPrice !== undefined) updates.avg_cost_price = avgCostPrice;
+  if (manualPrice !== undefined) {
+    updates.manual_price = manualPrice;
+    updates.manual_price_updated_at = new Date().toISOString();
+  }
 
   const { error } = await supabaseAdmin.from("portfolio_holdings").update(updates).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

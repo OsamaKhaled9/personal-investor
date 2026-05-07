@@ -1,6 +1,7 @@
 import yahooFinance from "yahoo-finance2";
 import type { StockQuote, Market, Currency, TechnicalSignals } from "./types";
 import { scrapeEGXQuote, EGX_KNOWN_TICKERS } from "./egx-scraper";
+import { fetchUSFundamentalsAV } from "./alpha-vantage";
 
 // Direct Yahoo Finance v8 chart API — bypasses yahoo-finance2 library quirks for EGX .CA tickers.
 // yahoo-finance2 v3.x silently returns empty quotes for EGX even though the raw endpoint works fine.
@@ -8,6 +9,53 @@ const YF_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Accept": "application/json",
 };
+
+// Uses the same v8/chart endpoint as EGX — no crumb required, confirmed working server-side.
+// The v7/quote endpoint requires a crumb token that must be fetched first; v8/chart does not.
+async function fetchUSQuoteRaw(ticker: string): Promise<StockQuote | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
+    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+
+    const timestamps: number[] = result.timestamp ?? [];
+    const q = result.indicators?.quote?.[0] ?? {};
+    const closes: (number | null)[] = q.close ?? [];
+    const volumes: (number | null)[] = q.volume ?? [];
+
+    let idx = closes.length - 1;
+    while (idx >= 0 && (closes[idx] == null || closes[idx]! <= 0)) idx--;
+    if (idx < 0) return null;
+
+    const price = closes[idx]!;
+    const prevClose: number =
+      (idx > 0 ? (closes[idx - 1] ?? null) : null) ?? result.meta?.chartPreviousClose ?? 0;
+    const change = prevClose > 0 ? price - prevClose : 0;
+    const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+
+    return {
+      ticker,
+      name: (result.meta?.shortName as string) ?? (result.meta?.longName as string) ?? ticker,
+      price,
+      currency: "USD",
+      change,
+      changePercent,
+      volume: (volumes[idx] as number) ?? 0,
+      marketCap: result.meta?.marketCap as number | undefined,
+      high52w: result.meta?.fiftyTwoWeekHigh as number | undefined,
+      low52w: result.meta?.fiftyTwoWeekLow as number | undefined,
+      market: "US",
+      lastUpdated: timestamps[idx]
+        ? new Date(timestamps[idx] * 1000).toISOString()
+        : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function fetchEGXQuoteRaw(ticker: string): Promise<StockQuote | null> {
   try {
@@ -59,20 +107,23 @@ async function fetchEGXQuoteRaw(ticker: string): Promise<StockQuote | null> {
       };
     }
 
-    const close = closes[idx]!;
+    const price = closes[idx]!;
     const prevClose: number =
       (idx > 0 ? (closes[idx - 1] ?? null) : null) ?? result.meta?.chartPreviousClose ?? 0;
-    const change = prevClose > 0 ? close - prevClose : 0;
+    const change = prevClose > 0 ? price - prevClose : 0;
     const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
     return {
       ticker,
       name: stockName,
-      price: close,
+      price,
       currency: "EGP",
       change,
       changePercent,
       volume: (volumes[idx] as number) ?? 0,
+      marketCap: result.meta?.marketCap as number | undefined,
+      high52w: result.meta?.fiftyTwoWeekHigh as number | undefined,
+      low52w: result.meta?.fiftyTwoWeekLow as number | undefined,
       market: "EGX",
       lastUpdated: timestamps[idx]
         ? new Date(timestamps[idx] * 1000).toISOString()
@@ -163,29 +214,8 @@ export async function getQuote(ticker: string, market: Market): Promise<StockQuo
     return null;
   }
 
-  // US stocks — straightforward
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await yahooFinance.quote(ticker, {}, { validateResult: false });
-    if (!result?.regularMarketPrice) return null;
-    return {
-      ticker,
-      name: result.longName ?? result.shortName ?? ticker,
-      price: result.regularMarketPrice ?? 0,
-      currency,
-      change: result.regularMarketChange ?? 0,
-      changePercent: result.regularMarketChangePercent ?? 0,
-      volume: result.regularMarketVolume ?? 0,
-      marketCap: result.marketCap,
-      peRatio: result.trailingPE,
-      high52w: result.fiftyTwoWeekHigh,
-      low52w: result.fiftyTwoWeekLow,
-      market,
-      lastUpdated: new Date().toISOString(),
-    };
-  } catch {
-    return null;
-  }
+  // US stocks — use raw v7 fetch (yahooFinance.quote() has same init bug as EGX chart)
+  return fetchUSQuoteRaw(ticker);
 }
 
 export async function getMultipleQuotes(
@@ -210,66 +240,83 @@ export async function getHistoricalPrices(
   market: Market,
   period: "1d" | "1w" | "1m" | "3m" | "1y"
 ): Promise<{ date: string; open: number; high: number; low: number; close: number; volume: number }[]> {
-  // EGX: use direct v8 fetch (yahoo-finance2 chart broken for .CA tickers)
+  // Both EGX and US now use raw v8/chart — yahoo-finance2 library chart is broken for all markets
   if (market === "EGX") {
     return fetchEGXHistoryRaw(ticker.replace(/\.(CA|EG)$/i, ""), period);
   }
 
-  const yt = bestYahooTicker(ticker, market);
-  const periodMap: Record<string, { period1: Date; interval: "1d" | "1wk" | "1mo" }> = {
-    "1d": { period1: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), interval: "1d" },
-    "1w": { period1: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), interval: "1d" },
-    "1m": { period1: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), interval: "1d" },
-    "3m": { period1: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), interval: "1d" },
-    "1y": { period1: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), interval: "1wk" },
+  // US: same v8/chart endpoint, no suffix needed
+  const rangeMap: Record<string, string> = {
+    "1d": "5d", "1w": "5d", "1m": "1mo", "3m": "3mo", "1y": "1y",
   };
-
+  const intervalMap: Record<string, string> = {
+    "1d": "1d", "1w": "1d", "1m": "1d", "3m": "1d", "1y": "1wk",
+  };
   try {
-    const { period1, interval } = periodMap[period];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await yahooFinance.chart(yt, {
-      period1: period1.toISOString().split("T")[0],
-      interval,
-    }, { validateResult: false });
-
-    return (result.quotes ?? []).map((q: Record<string, number | string>) => ({
-      date: new Date(q.date as string).toISOString().split("T")[0],
-      open: (q.open as number) ?? 0,
-      high: (q.high as number) ?? 0,
-      low: (q.low as number) ?? 0,
-      close: (q.close as number) ?? 0,
-      volume: (q.volume as number) ?? 0,
-    }));
+    const url =
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}` +
+      `?interval=${intervalMap[period]}&range=${rangeMap[period]}`;
+    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return [];
+    const timestamps: number[] = result.timestamp ?? [];
+    const q = result.indicators?.quote?.[0] ?? {};
+    return timestamps
+      .map((ts: number, i: number) => ({
+        date: new Date(ts * 1000).toISOString().split("T")[0],
+        open: (q.open?.[i] as number) ?? 0,
+        high: (q.high?.[i] as number) ?? 0,
+        low: (q.low?.[i] as number) ?? 0,
+        close: (q.close?.[i] as number) ?? 0,
+        volume: (q.volume?.[i] as number) ?? 0,
+      }))
+      .filter((row) => row.close > 0);
   } catch {
     return [];
   }
 }
 
+// Yahoo Finance v10 quoteSummary — bypasses yahoo-finance2 library (same init bug as chart/quote).
+// Values are returned as {raw: number, fmt: string} objects; extract .raw for numeric fields.
+function rawNum(x: unknown): number | null {
+  if (x == null) return null;
+  if (typeof x === "number") return x;
+  if (typeof x === "object" && "raw" in (x as object)) return (x as { raw: number }).raw;
+  return null;
+}
+
 export async function getFundamentals(ticker: string, market: Market) {
+  if (market === "US") {
+    const av = await fetchUSFundamentalsAV(ticker);
+    if (av) return av;
+  }
+
   const yt = bestYahooTicker(ticker, market);
   try {
-    const [summary, financials] = await Promise.allSettled([
-      yahooFinance.quoteSummary(yt, { modules: ["defaultKeyStatistics", "summaryDetail", "financialData"] }, { validateResult: false }),
-      yahooFinance.quoteSummary(yt, { modules: ["incomeStatementHistory", "balanceSheetHistory"] }, { validateResult: false }),
-    ]);
+    const modules = "defaultKeyStatistics,summaryDetail,financialData,incomeStatementHistory,balanceSheetHistory";
+    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yt)}?modules=${encodeURIComponent(modules)}`;
+    const res = await fetch(url, { headers: YF_HEADERS, next: { revalidate: 3600 } });
+    if (!res.ok) return null;
 
+    const data = await res.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s: any = summary.status === "fulfilled" ? summary.value : null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const f: any = financials.status === "fulfilled" ? financials.value : null;
+    const r: any = data?.quoteSummary?.result?.[0];
+    if (!r) return null;
 
     return {
-      totalDebt: s?.financialData?.totalDebt ?? null,
-      marketCap: s?.summaryDetail?.marketCap ?? null,
-      totalRevenue: s?.financialData?.totalRevenue ?? null,
-      totalCash: s?.financialData?.totalCash ?? null,
-      debtToEquity: s?.financialData?.debtToEquity ?? null,
-      sector: s?.defaultKeyStatistics?.sector ?? null,
-      industry: s?.defaultKeyStatistics?.industry ?? null,
+      totalDebt: rawNum(r.financialData?.totalDebt),
+      marketCap: rawNum(r.summaryDetail?.marketCap),
+      totalRevenue: rawNum(r.financialData?.totalRevenue),
+      totalCash: rawNum(r.financialData?.totalCash),
+      debtToEquity: rawNum(r.financialData?.debtToEquity),
+      sector: (r.defaultKeyStatistics?.sector as string) ?? null,
+      industry: (r.defaultKeyStatistics?.industry as string) ?? null,
       businessSummary: null,
-      interestExpense: f?.incomeStatementHistory?.incomeStatementHistory?.[0]?.interestExpense ?? null,
-      totalAssets: f?.balanceSheetHistory?.balanceSheetStatements?.[0]?.totalAssets ?? null,
-      netReceivables: f?.balanceSheetHistory?.balanceSheetStatements?.[0]?.netReceivables ?? null,
+      interestExpense: rawNum(r.incomeStatementHistory?.incomeStatementHistory?.[0]?.interestExpense),
+      totalAssets: rawNum(r.balanceSheetHistory?.balanceSheetStatements?.[0]?.totalAssets),
+      netReceivables: rawNum(r.balanceSheetHistory?.balanceSheetStatements?.[0]?.netReceivables),
     };
   } catch {
     return null;
