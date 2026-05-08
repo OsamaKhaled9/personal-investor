@@ -170,3 +170,77 @@ export type PriceSnapshotRow = {
   source: "yahoo" | "manual";
   created_at: string;
 };
+
+export type Category = 'career'|'finance'|'business'|'education'|'health'|'spiritual'|'family'|'travel'|'growth';
+
+export type LifePhase = {
+  id: string;
+  planId: string;
+  label: string;
+  startYear: number;
+  endYear: number;
+  description?: string;
+  emoji?: string;
+  color?: string;
+};
+
+export type Milestone = {
+  id: string;
+  planId: string;
+  year: number;
+  category: Category;
+  text: string;
+  completed: boolean;
+  completedAt?: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LifePlan = {
+  id: string;
+  title: string;
+  northStar: string;
+  startYear: number;
+  endYear: number;
+  phases: LifePhase[];
+  milestones: Milestone[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MilestoneUpdate = Pick<Milestone,'id'> & Partial<Milestone>;
+
+export type Goal = {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  targetDate?: string;
+  progress: number;
+  status: 'active'|'completed'|'paused';
+  createdAt: string;
+};
+
+export type PrayerLog = {
+  id: string;
+  prayerDate: string;
+  prayerName: 'Fajr'|'Dhuhr'|'Asr'|'Maghrib'|'Isha';
+  prayed: boolean;
+};
+
+export type QuranProgress = {
+  id: string;
+  logDate: string;
+  pagesRead: number;
+  juz?: number;
+  notes?: string;
+};
+
+export type FitnessLog = {
+  id: string;
+  logDate: string;
+  type: string;
+  durationMin?: number;
+  notes?: string;
+};

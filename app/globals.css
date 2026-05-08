@@ -1,60 +1,143 @@
 @import "tailwindcss";
 
-/* ─── Light mode (default) ─────────────────────────────────────────────── */
+/* ─── Hayati Brand Scale Tokens ─────────────────────────────────────────────
+   All scale tokens live here. Semantic tokens (consumed by components)
+   are defined in the light/dark blocks below.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Gold scale — antique brass, late-afternoon sun */
+  --hayati-gold-50:  #FEF9EE;
+  --hayati-gold-100: #FAEFD0;
+  --hayati-gold-200: #F4D89A;
+  --hayati-gold-300: #EAB96A;
+  --hayati-gold-400: #DC9F48;
+  --hayati-gold-500: #C9913D;
+  --hayati-gold-600: #A87230;
+  --hayati-gold-700: #7F5222;
+  --hayati-gold-800: #573618;
+  --hayati-gold-900: #30190A;
+
+  /* Night scale — oud wood smoke, deep violet-black */
+  --hayati-night-50:  #F0EEF8;
+  --hayati-night-100: #D3CEEC;
+  --hayati-night-200: #A69DD4;
+  --hayati-night-300: #7870B4;
+  --hayati-night-400: #524891;
+  --hayati-night-500: #352D6E;
+  --hayati-night-600: #221C52;
+  --hayati-night-700: #17102B;
+  --hayati-night-800: #100C20;
+  --hayati-night-900: #08060F;
+
+  /* Sand scale — warm neutrals, no cool grays anywhere */
+  --hayati-sand-50:  #FAFAF7;
+  --hayati-sand-100: #F3EAD8;
+  --hayati-sand-200: #E5D5BC;
+  --hayati-sand-300: #D4C0A2;
+  --hayati-sand-400: #C8B89E;
+  --hayati-sand-500: #A09280;
+  --hayati-sand-600: #786860;
+  --hayati-sand-700: #564840;
+  --hayati-sand-800: #4A3D36;
+  --hayati-sand-900: #2A1F1A;
+
+  /* Sage scale — Palm Sage, life / growth / vitality */
+  --hayati-sage-50:  #EDF5F0;
+  --hayati-sage-200: #9ECBB2;
+  --hayati-sage-400: #4A9A70;
+  --hayati-sage-500: #5A8A68;
+  --hayati-sage-700: #28563A;
+
+  /* Terra scale — Desert Terra, warmth / emotion / humanity */
+  --hayati-terra-50:  #FDF2EE;
+  --hayati-terra-200: #F0B9A8;
+  --hayati-terra-400: #D07060;
+  --hayati-terra-500: #C06858;
+  --hayati-terra-700: #78362E;
+
+  /* Shadows — all use night-700 (#17102B) as warm base */
+  --shadow-xs:   0 1px 2px 0 rgb(23 16 43 / 0.06);
+  --shadow-sm:   0 2px 6px -1px rgb(23 16 43 / 0.10), 0 1px 2px -1px rgb(23 16 43 / 0.06);
+  --shadow-md:   0 6px 16px -4px rgb(23 16 43 / 0.12), 0 2px 4px -2px rgb(23 16 43 / 0.06);
+  --shadow-lg:   0 16px 40px -8px rgb(23 16 43 / 0.16), 0 4px 8px -4px rgb(23 16 43 / 0.06);
+  --shadow-gold: 0 4px 20px -2px rgb(201 145 61 / 0.35);
+}
+
+/* ─── Light mode ─────────────────────────────────────────────────────────── */
 :root,
 html.light {
-  --background: #fafbfc;
-  --surface: #ffffff;
-  --surface-elevated: #f3f4f6;
-  --border: #d0d7de;
-  --border-subtle: #eaeef2;
-  --foreground: #0d1117;
-  --foreground-muted: #57606a;
-  --foreground-subtle: #8c959f;
-  --accent-green: #1a7f37;
-  --accent-red: #cf222e;
-  --accent-gold: #9a6700;
-  --accent-blue: #0969da;
-  --accent-purple: #8250df;
+  --background:        var(--hayati-sand-50);
+  --surface:           #ffffff;
+  --surface-elevated:  var(--hayati-sand-100);
+  --border:            var(--hayati-sand-200);
+  --border-subtle:     var(--hayati-sand-100);
+  --foreground:        var(--hayati-night-800);
+  --foreground-muted:  var(--hayati-sand-700);
+  --foreground-subtle: var(--hayati-sand-500);
+
+  /* Accent tokens — keep names so pillar pages need no changes */
+  --accent-green:  var(--hayati-sage-500);
+  --accent-red:    #cf222e;
+  --accent-gold:   var(--hayati-gold-500);
+  --accent-blue:   var(--hayati-gold-500);   /* alias → gold */
+  --accent-purple: var(--hayati-terra-500);  /* alias → terra */
+
+  /* Nav helpers */
+  --nav-bg:           rgba(250, 250, 247, 0.85);
+  --nav-active-bg:    rgba(201, 145, 61, 0.08);
+  --nav-active-color: var(--hayati-gold-600);
 
   color-scheme: light;
 }
 
-/* ─── Dark mode ─────────────────────────────────────────────────────────── */
-/* html.dark has higher specificity than :root — wins regardless of source order */
+/* ─── Dark mode ──────────────────────────────────────────────────────────── */
 html.dark {
-  --background: #07090f;
-  --surface: #0d1117;
-  --surface-elevated: #161b22;
-  --border: #21262d;
-  --border-subtle: #161b22;
-  --foreground: #e6edf3;
-  --foreground-muted: #8b949e;
-  --foreground-subtle: #484f58;
-  --accent-green: #3fb950;
-  --accent-red: #f85149;
-  --accent-gold: #d29922;
-  --accent-blue: #58a6ff;
-  --accent-purple: #bc8cff;
+  --background:        var(--hayati-night-900);
+  --surface:           var(--hayati-night-800);
+  --surface-elevated:  var(--hayati-night-700);
+  --border:            rgba(255, 255, 255, 0.08);
+  --border-subtle:     rgba(255, 255, 255, 0.04);
+  --foreground:        var(--hayati-sand-100);
+  --foreground-muted:  var(--hayati-sand-400);
+  --foreground-subtle: var(--hayati-sand-600);
+
+  /* Accent tokens */
+  --accent-green:  var(--hayati-sage-400);
+  --accent-red:    #f85149;
+  --accent-gold:   var(--hayati-gold-400);
+  --accent-blue:   var(--hayati-gold-400);   /* alias → gold */
+  --accent-purple: var(--hayati-terra-400);  /* alias → terra */
+
+  /* Nav helpers */
+  --nav-bg:           rgba(16, 12, 32, 0.85);
+  --nav-active-bg:    rgba(201, 145, 61, 0.12);
+  --nav-active-color: var(--hayati-gold-400);
 
   color-scheme: dark;
 }
 
 /* ─── Tailwind 4 theme mapping ──────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-border: var(--border);
-  --color-foreground: var(--foreground);
-  --color-foreground-muted: var(--foreground-muted);
-  --color-accent-green: var(--accent-green);
-  --color-accent-red: var(--accent-red);
-  --color-accent-gold: var(--accent-gold);
-  --color-accent-blue: var(--accent-blue);
-  --color-accent-purple: var(--accent-purple);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background:        var(--background);
+  --color-surface:           var(--surface);
+  --color-surface-elevated:  var(--surface-elevated);
+  --color-border:            var(--border);
+  --color-foreground:        var(--foreground);
+  --color-foreground-muted:  var(--foreground-muted);
+  --color-accent-green:      var(--accent-green);
+  --color-accent-red:        var(--accent-red);
+  --color-accent-gold:       var(--accent-gold);
+  --color-accent-blue:       var(--accent-blue);
+  --color-accent-purple:     var(--accent-purple);
+  --color-brand:             var(--accent-gold);
+  --color-sage:              var(--hayati-sage-500);
+  --color-terra:             var(--hayati-terra-500);
+  --font-sans:               var(--font-ibm-plex-sans, var(--font-geist-sans));
+  --font-mono:               var(--font-geist-mono);
+  --font-arabic:             var(--font-cairo);
+  --font-heading-arabic:     var(--font-ibm-plex-arabic);
+  --font-body-arabic:        var(--font-tajawal);
+  --font-latin:              var(--font-ibm-plex-sans);
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────── */
@@ -65,33 +148,76 @@ html.dark {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-ibm-plex-sans, var(--font-geist-sans)), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Smooth theme transition on structural elements — not on * to avoid fighting Framer Motion */
+/* Smooth theme transitions — not on * to avoid fighting Framer Motion */
 html, body, header, nav, main, section, aside, footer,
 div[class], span[class], a[class], button[class] {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
 }
 
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--foreground-subtle); }
+::-webkit-scrollbar-thumb { background: var(--hayati-sand-400); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--hayati-sand-600); }
+
+html.dark ::-webkit-scrollbar-thumb { background: var(--hayati-sand-700); }
+html.dark ::-webkit-scrollbar-thumb:hover { background: var(--hayati-sand-600); }
 
 /* ─── Chart tooltips ────────────────────────────────────────────────────── */
-.recharts-tooltip-wrapper {
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-/* Override Recharts tooltip colors to follow theme */
+.recharts-tooltip-wrapper { border-radius: 8px !important; overflow: hidden; }
 .recharts-tooltip-content {
   background: var(--surface-elevated) !important;
   border-color: var(--border) !important;
   color: var(--foreground) !important;
+}
+
+/* ─── Typography utilities ──────────────────────────────────────────────── */
+.arabic-text {
+  font-family: var(--font-tajawal, var(--font-cairo)), 'Noto Naskh Arabic', system-ui;
+  direction: rtl;
+  letter-spacing: 0;
+  line-height: 1.7;
+}
+
+.font-azal {
+  font-family: var(--font-azal-display), 'Cairo', sans-serif;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.font-scheherazade {
+  font-family: var(--font-scheherazade), 'Noto Naskh Arabic', system-ui;
+  line-height: 2.2;
+}
+
+/* ─── Layout utilities ──────────────────────────────────────────────────── */
+.full-bleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.landing-root { overflow-x: clip; }
+
+/* ─── Brand gradient utilities ──────────────────────────────────────────── */
+.text-gold-gradient {
+  background: linear-gradient(135deg, var(--hayati-gold-500), var(--hayati-gold-300));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* ─── Link & button base transitions ────────────────────────────────────── */
