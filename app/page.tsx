@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrendingUp, Moon, Target, Activity, type LucideIcon } from "lucide-react";
@@ -164,7 +164,7 @@ function Sparkline() {
       <motion.path d={line} fill="none" stroke="url(#sp-line)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" filter="url(#sp-glow)"
         initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.2, delay: 0.8, ease: "easeOut" }} />
       <motion.circle cx={last.x} cy={last.y} r="2.5" fill="#4A9A70" filter="url(#sp-glow)"
-        initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 1.8, duration: 0.3 }} />
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.8, duration: 0.5 }} />
     </svg>
   );
 }
@@ -184,15 +184,15 @@ function PrayerCircles({ prayedMap, loading }: { prayedMap: Record<PrayerName, b
               <svg viewBox="0 0 36 36" width="40" height="40" style={{ transform: "rotate(-90deg)" }}>
                 <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="2" />
                 <motion.circle cx="18" cy="18" r="14" fill="none"
-                  stroke={done ? "var(--hayati-sage-400)" : "transparent"}
-                  strokeWidth="2.5" strokeDasharray={CIRC} strokeLinecap="round"
-                  initial={{ strokeDashoffset: CIRC }} animate={{ strokeDashoffset: done ? 0 : CIRC }}
-                  transition={{ type: "spring", stiffness: 160, damping: 24, delay: idx * 0.06 }}
-                  style={{ filter: done ? "drop-shadow(0 0 3px #4A9A70)" : "none", transition: "filter 0.4s" }} />
+                  stroke="#4A9A70"
+                  strokeWidth="2.5" strokeLinecap="round"
+                  initial={{ strokeDasharray: CIRC, strokeDashoffset: CIRC, opacity: 0 }}
+                  animate={{ strokeDashoffset: done ? 0 : CIRC, opacity: done ? 1 : 0 }}
+                  transition={{ type: "spring", stiffness: 160, damping: 24, delay: idx * 0.06 }} />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <motion.div className="w-2 h-2 rounded-full"
-                  animate={{ backgroundColor: done ? "#4A9A70" : "rgba(255,255,255,0.12)", boxShadow: done ? "0 0 6px #4A9A70" : "none" }}
+                  animate={{ backgroundColor: done ? "#4A9A70" : "rgba(255,255,255,0.12)", boxShadow: done ? "0 0 6px rgba(74,154,112,0.8)" : "0 0 0px rgba(74,154,112,0)" }}
                   transition={{ duration: 0.3 }} />
               </div>
             </div>
@@ -438,11 +438,14 @@ export default function HubPage() {
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [prayedMap, setPrayedMap] = useState<Record<PrayerName, boolean> | null>(null);
   const [prayerLoading, setPrayerLoading] = useState(true);
-  const [proteinLogged, setProteinLogged] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    const key = `hayati_protein_${new Date().toLocaleDateString("en-CA")}`;
-    return Number(localStorage.getItem(key) ?? "0");
-  });
+  // Start at 0 (SSR-safe). useEffect syncs from localStorage after hydration.
+  const [proteinLogged, setProteinLogged] = useState(0);
+
+  useEffect(() => {
+    const proteinKey = `hayati_protein_${new Date().toLocaleDateString("en-CA")}`;
+    const saved = localStorage.getItem(proteinKey);
+    if (saved) startTransition(() => setProteinLogged(Number(saved)));
+  }, []);
 
   useEffect(() => {
     fetch("/api/portfolio")
