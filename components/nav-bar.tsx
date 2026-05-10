@@ -45,7 +45,7 @@ export function NavBar() {
   return (
     <>
       {/* Desktop — sticky top header */}
-      <header className="hidden md:block sticky top-0 z-50 border-b backdrop-blur-xl" style={{ background: "var(--nav-bg)", borderColor: "var(--border)" }}>
+      <header className="hidden md:block sticky top-0 z-50 border-b backdrop-blur-md" style={{ background: "var(--nav-bg)", borderColor: "var(--border)" }}>
         <div className="container mx-auto px-4 max-w-7xl flex items-center justify-between h-14">
           <Logo />
 
@@ -56,7 +56,7 @@ export function NavBar() {
                 <Link
                   key={pillar.href}
                   href={pillar.href}
-                  className="relative px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-[44px] flex items-center gap-1.5"
+                  className="relative px-3 py-2 rounded-md text-sm font-medium transition-colors min-h-11 flex items-center gap-1.5"
                   style={{ color: active ? "var(--nav-active-color)" : "var(--foreground-muted)" }}
                 >
                   {active && (
@@ -82,7 +82,7 @@ export function NavBar() {
 
       {/* Mobile — fixed bottom tab bar */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-xl"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md"
         style={{ background: "var(--nav-bg)", borderColor: "var(--border)", paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-stretch h-16">

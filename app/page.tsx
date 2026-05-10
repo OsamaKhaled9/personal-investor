@@ -45,15 +45,15 @@ function MeshBackground() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
       <motion.div className="absolute rounded-full"
-        style={{ width: 580, height: 580, background: "radial-gradient(ellipse, rgba(197,160,89,0.09) 0%, transparent 65%)", filter: "blur(72px)", top: "-18%", left: "-12%" }}
+        style={{ width: 580, height: 580, background: "radial-gradient(ellipse, rgba(197,160,89,0.09) 0%, transparent 65%)", filter: "blur(72px)", top: "-18%", left: "-12%", willChange: "transform" }}
         animate={{ x: [0, 40, -20, 0], y: [0, -30, 15, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }} />
       <motion.div className="absolute rounded-full"
-        style={{ width: 460, height: 460, background: "radial-gradient(ellipse, rgba(55,35,90,0.16) 0%, transparent 65%)", filter: "blur(62px)", top: "8%", right: "-8%" }}
+        style={{ width: 460, height: 460, background: "radial-gradient(ellipse, rgba(55,35,90,0.16) 0%, transparent 65%)", filter: "blur(62px)", top: "8%", right: "-8%", willChange: "transform" }}
         animate={{ x: [0, -28, 10, 0], y: [0, 38, -18, 0] }}
         transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }} />
       <motion.div className="absolute rounded-full"
-        style={{ width: 380, height: 380, background: "radial-gradient(ellipse, rgba(90,138,104,0.07) 0%, transparent 65%)", filter: "blur(80px)", bottom: "6%", left: "22%" }}
+        style={{ width: 380, height: 380, background: "radial-gradient(ellipse, rgba(90,138,104,0.07) 0%, transparent 65%)", filter: "blur(80px)", bottom: "6%", left: "22%", willChange: "transform" }}
         animate={{ x: [0, 22, -12, 0], y: [0, -18, 28, 0] }}
         transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }} />
     </div>
@@ -233,8 +233,7 @@ function WorshipCard({ prayedMap, loading }: { prayedMap: Record<PrayerName, boo
         style={{
           borderColor: "rgba(90,138,104,0.20)",
           borderTopColor: "var(--hayati-sage-500)", borderTopWidth: "2px",
-          background: "linear-gradient(135deg, rgba(90,138,104,0.10) 0%, rgba(16,12,32,0.74) 55%)",
-          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          background: "linear-gradient(135deg, rgba(90,138,104,0.12) 0%, rgba(16,12,32,0.88) 55%)",
           boxShadow: "0 4px 16px -2px rgba(90,138,104,0.15)",
         }}>
         <div className="flex items-center gap-2.5 mb-1">
@@ -315,8 +314,7 @@ function LifeCard() {
         style={{
           borderColor: "rgba(208,112,96,0.18)",
           borderTopColor: "var(--hayati-terra-400)", borderTopWidth: "2px",
-          background: "linear-gradient(135deg, rgba(208,112,96,0.10) 0%, rgba(16,12,32,0.74) 55%)",
-          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          background: "linear-gradient(135deg, rgba(208,112,96,0.12) 0%, rgba(16,12,32,0.88) 55%)",
           boxShadow: "0 4px 16px -2px rgba(208,112,96,0.15)",
         }}>
         <div className="flex items-center gap-2.5 mb-1">
@@ -353,8 +351,7 @@ function HealthCard({ proteinLogged, onAdd }: { proteinLogged: number; onAdd: (g
         style={{
           borderColor: "rgba(234,185,106,0.18)",
           borderTopColor: "var(--hayati-gold-300)", borderTopWidth: "2px",
-          background: "linear-gradient(135deg, rgba(234,185,106,0.10) 0%, rgba(16,12,32,0.74) 55%)",
-          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          background: "linear-gradient(135deg, rgba(234,185,106,0.12) 0%, rgba(16,12,32,0.88) 55%)",
           boxShadow: "0 4px 16px -2px rgba(234,185,106,0.15)",
         }}>
         {/* Header */}
