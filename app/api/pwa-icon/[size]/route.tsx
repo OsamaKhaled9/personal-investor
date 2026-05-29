@@ -1,7 +1,18 @@
+export const runtime = "nodejs";
+
 import { ImageResponse } from "next/og";
 import { NextResponse } from "next/server";
+import { readFileSync } from "fs";
+import { join } from "path";
 
-export const runtime = "edge";
+let cachedSrc: string | null = null;
+function getLogoSrc(): string {
+  if (!cachedSrc) {
+    const buf = readFileSync(join(process.cwd(), "public/smalllogo.png"));
+    cachedSrc = `data:image/png;base64,${buf.toString("base64")}`;
+  }
+  return cachedSrc;
+}
 
 export async function GET(
   _req: Request,
@@ -9,39 +20,31 @@ export async function GET(
 ) {
   const { size: sizeParam } = await params;
   const s = parseInt(sizeParam) || 192;
-  if (![192, 512].includes(s)) return new NextResponse("Not found", { status: 404 });
+  if (![192, 512].includes(s))
+    return new NextResponse("Not found", { status: 404 });
 
-  const innerSize = Math.round(s * 0.6);
+  const src = getLogoSrc();
+  const inner = Math.round(s * 0.78);
   const radius = Math.round(s * 0.18);
 
   return new ImageResponse(
     <div
       style={{
-        background: "#07090f",
         width: s,
         height: s,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: "#07090f",
         borderRadius: radius,
       }}
     >
-      <svg width={innerSize} height={innerSize} viewBox="0 0 20 20" fill="none">
-        <polyline
-          points="2,15 7,9 11,12 18,4"
-          stroke="#4ade80"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <polyline
-          points="13,4 18,4 18,9"
-          stroke="#4ade80"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <img
+        src={src}
+        width={inner}
+        height={inner}
+        style={{ objectFit: "contain" }}
+      />
     </div>,
     { width: s, height: s }
   );

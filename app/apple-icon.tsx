@@ -1,37 +1,32 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
 export default function AppleIcon() {
+  const buf = readFileSync(join(process.cwd(), "public/smalllogo.png"));
+  const src = `data:image/png;base64,${buf.toString("base64")}`;
+
   return new ImageResponse(
     <div
       style={{
-        background: "#07090f",
         width: 180,
         height: 180,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: "#07090f",
         borderRadius: 40,
       }}
     >
-      <svg width="110" height="110" viewBox="0 0 20 20" fill="none">
-        <polyline
-          points="2,15 7,9 11,12 18,4"
-          stroke="#4ade80"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <polyline
-          points="13,4 18,4 18,9"
-          stroke="#4ade80"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <img
+        src={src}
+        width={140}
+        height={140}
+        style={{ objectFit: "contain" }}
+      />
     </div>,
     { ...size }
   );
