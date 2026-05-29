@@ -237,6 +237,42 @@ export type QuranProgress = {
   notes?: string;
 };
 
+export type ReadingSession = {
+  id: string;
+  session_date: string;
+  from_page: number;
+  to_page: number;
+  pages_read: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export type Khatma = {
+  id: string;
+  started_at: string;
+  target_date: string;
+  current_page: number;
+  completed_at: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type SessionApiResponse = {
+  today: ReadingSession | null;
+  streak: number;
+  recentDays: { date: string; pages: number }[];
+  totalPages: number;
+  bestDay: { date: string; pages: number } | null;
+  avgPerDay: number;
+  currentPosition: number | null;
+};
+
+export type KhatmaApiResponse = {
+  active: Khatma | null;
+  history: Khatma[];
+  totalKhatmas: number;
+};
+
 export type FitnessLog = {
   id: string;
   logDate: string;

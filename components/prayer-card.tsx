@@ -7,21 +7,33 @@ type PrayerCardProps = {
   time: string;
   prayed: boolean;
   isNext: boolean;
+  nextIn?: string;
   onToggle: () => void;
 };
 
-export function PrayerCard({ name, arabicName, time, prayed, isNext, onToggle }: PrayerCardProps) {
+export function PrayerCard({ name, arabicName, time, prayed, isNext, nextIn, onToggle }: PrayerCardProps) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`flex items-center gap-4 rounded-xl border bg-[var(--surface)] p-4 min-h-[64px] transition-colors ${
-        isNext ? "ring-1 ring-[var(--accent-blue)]" : ""
-      }`}
-      style={{ borderColor: "var(--border)" }}
+      animate={{ opacity: prayed ? 0.62 : 1 }}
+      transition={{ duration: 0.3 }}
+      // CSS class drives box-shadow animation; Framer only handles opacity + layout
+      className={`flex items-center gap-4 rounded-xl border p-4 min-h-16${isNext && !prayed ? " prayer-card-next" : ""}`}
+      style={{
+        background: prayed
+          ? "linear-gradient(135deg, rgba(74,154,112,0.06) 0%, var(--surface) 55%)"
+          : isNext
+          ? "linear-gradient(135deg, rgba(201,145,61,0.08) 0%, var(--surface) 60%)"
+          : "var(--surface)",
+        borderColor: prayed
+          ? "rgba(74,154,112,0.28)"
+          : isNext
+          ? "rgba(201,145,61,0.28)"
+          : "var(--border)",
+        transition: "background 0.3s ease, border-color 0.3s ease",
+      }}
     >
-      {/* Spring checkbox — scale pulse uses tween (spring doesn't support 3-keyframe arrays) */}
+      {/* Spring checkbox */}
       <motion.div
         animate={{ scale: prayed ? [1, 1.2, 1] : 1 }}
         transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] }}
@@ -36,7 +48,7 @@ export function PrayerCard({ name, arabicName, time, prayed, isNext, onToggle }:
           animate={
             prayed
               ? { backgroundColor: "var(--accent-green)", borderColor: "var(--accent-green)" }
-              : { backgroundColor: "transparent", borderColor: "var(--border)" }
+              : { backgroundColor: "rgba(0,0,0,0)", borderColor: "var(--border)" }
           }
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
           className="w-6 h-6 rounded-full border-2 flex items-center justify-center min-w-6"
@@ -58,14 +70,26 @@ export function PrayerCard({ name, arabicName, time, prayed, isNext, onToggle }:
 
       {/* Prayer info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-sm" style={{ color: "var(--foreground)" }}>
             {name}
           </span>
-          {isNext && (
+          {isNext && nextIn && (
+            <span
+              className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+              style={{
+                color: "var(--hayati-gold-400)",
+                background: "rgba(201,145,61,0.10)",
+                border: "1px solid rgba(201,145,61,0.20)",
+              }}
+            >
+              {nextIn}
+            </span>
+          )}
+          {isNext && !nextIn && (
             <span
               className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
-              style={{ color: "var(--accent-blue)", background: "color-mix(in srgb, var(--accent-blue) 12%, transparent)" }}
+              style={{ color: "var(--hayati-gold-400)", background: "rgba(201,145,61,0.10)" }}
             >
               Next
             </span>
@@ -77,7 +101,16 @@ export function PrayerCard({ name, arabicName, time, prayed, isNext, onToggle }:
       </div>
 
       {/* Time */}
-      <span className="font-mono text-sm tabular-nums flex-shrink-0" style={{ color: prayed ? "var(--accent-green)" : "var(--foreground-muted)" }}>
+      <span
+        className="font-mono text-sm tabular-nums shrink-0 font-semibold"
+        style={{
+          color: prayed
+            ? "var(--accent-green)"
+            : isNext
+            ? "var(--hayati-gold-400)"
+            : "var(--foreground-muted)",
+        }}
+      >
         {time}
       </span>
     </motion.div>

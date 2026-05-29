@@ -222,3 +222,12 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: var(--hayati-sand-600); 
 
 /* ─── Link & button base transitions ────────────────────────────────────── */
 a, button { transition: opacity 0.15s, color 0.15s, background 0.15s; }
+
+/* ─── Prayer card breathing pulse (box-shadow only — GPU compositor) ─── */
+@keyframes prayer-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(201,145,61,0.12); }
+  50%       { box-shadow: 0 0 22px 3px rgba(201,145,61,0.30), 0 0 0 1px rgba(201,145,61,0.38); }
+}
+.prayer-card-next {
+  animation: prayer-pulse 2.8s ease-in-out infinite;
+}
